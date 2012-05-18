@@ -26,7 +26,7 @@ def callserver(h, path, ctx, step, response):
 
     # Make http call
     resp = h.getresponse()
-    if resp.status == 401 and resp.getheader("WWW-Authenticate") in ("Negotiate"):
+    if resp.status == 401 and "Negotiate" in resp.getheader("WWW-Authenticate").split(", "):
         count=0
         neg=True
         status=AUTH_GSS_CONTINUE
@@ -34,8 +34,10 @@ def callserver(h, path, ctx, step, response):
 	
 	    if resp.status == 401: resp.read() # read before attempt to make new request
 	    #print "count", count
+	    if count==0: servertoken=""
+	    else:
+	      servertoken=(resp.getheader("WWW-Authenticate").split(" ") + [""])[1]
 	    count = count+1
-	    servertoken=(resp.getheader("WWW-Authenticate").split(" ") + [""])[1]
 	    if servertoken == "" and count > 1:
 	      # we'd need a servertoken after we send our sessionticket
 	      print "breaking"
@@ -57,7 +59,7 @@ def callserver(h, path, ctx, step, response):
     else:
 
 	if not neg:
-    	    print "No Negotiation with server (authentication reused or site unprotected)"
+    	    print "No Negotiation with server (authentication reused or site not kerberos protected)"
         print "HTTP Status: %s" % str(resp.status)
         print resp.read()
         
