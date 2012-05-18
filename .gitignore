@@ -1,0 +1,7 @@
+.*
+/build
+/dist
+*.egg
+*.keytab
+*.tgz
+*.tar.gz
