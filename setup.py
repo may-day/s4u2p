@@ -17,13 +17,13 @@ http://msdn.microsoft.com/en-us/magazine/cc188757.aspx#S2
 
 setup (
     name = "s4u2p",
-    version = "0.1",
+    version = "0.2",
     author="Norman Krämer",
     author_email="kraemer.norman@googlemail.com",
     description = "Kerberos high-level interface to the s4u kerberos functionality",
     long_description=long_description,
     url="https://github.com/may-day/s4u2p",
-    download_url = "https://github.com/may-day/s4u2p/tarball/0.1",
+    download_url = "https://github.com/may-day/s4u2p/tarball/0.2",
     classifiers = [
         "License :: OSI Approved :: Apache Software License",
         "Programming Language :: Python :: 2",
