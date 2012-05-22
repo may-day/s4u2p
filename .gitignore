@@ -5,3 +5,4 @@
 *.keytab
 *.tgz
 *.tar.gz
+*.pyc
