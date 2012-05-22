@@ -1,13 +1,24 @@
-# urllib3/contrib/ntlmpool.py
-# Copyright 2008-2012 Andrey Petrov and contributors (see CONTRIBUTORS.txt)
-#
-# This module is part of urllib3 and is released under
-# the MIT License: http://www.opensource.org/licenses/mit-license.php
+# -*- coding: utf8 -*-
+#!/usr/bin/python
+
+# Copyright 2012 Norman Krämer
+
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+
+#     http://www.apache.org/licenses/LICENSE-2.0
+
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# this is based on the urllib2_kerberos from https://bitbucket.org/tolsen/urllib2_kerberos
 
 """
-NTLM authenticating pool, contributed by erikcederstran
-
-Issue #10, see: http://code.google.com/p/urllib3/issues/detail?id=10
+Kerberos authenticating pool
 """
 
 try:
