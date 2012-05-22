@@ -62,10 +62,11 @@ class AbstractKerberosAuthHandler(object):
 
         return None
 
-    def __init__(self, as_user, gssflags):
+    def __init__(self, as_user, spn, gssflags):
         self.retried = 0
         self.context = None
         self.gssflags=gssflags
+        self.spn = spn
         if as_user:
             self.gss_step = s4u2p.authGSSImpersonationStep
             self.gss_response = s4u2p.authGSSImpersonationResponse
@@ -83,13 +84,16 @@ class AbstractKerberosAuthHandler(object):
         self.retried += 1
         log.debug("retry count: %d" % self.retried)
 
-        host = req.get_host()
-        log.debug("req.get_host() returned %s" % host)
+        if self.spn is None:
+            host = req.get_host()
+            log.debug("req.get_host() returned %s" % host)
 
-        tail, sep, head = host.rpartition(':')
-        domain = tail if tail else head
-                
-        result, self.context = self.gss_init("HTTP@%s" % domain, self.gssflags)
+            tail, sep, head = host.rpartition(':')
+            domain = tail if tail else head
+            spn = "HTTP@%s" % domain
+        else:
+            spn = self.spn    
+        result, self.context = self.gss_init(spn, self.gssflags)
 
         if result < 1:
             log.warning("authGSSClientInit returned result %d" % result)
@@ -173,8 +177,8 @@ class ProxyKerberosAuthHandler(u2.BaseHandler, AbstractKerberosAuthHandler):
 
     handler_order = 480 # before Digest auth
 
-    def __init__(self, as_user=None, gssflags=k.GSS_C_MUTUAL_FLAG|k.GSS_C_SEQUENCE_FLAG):
-        super(ProxyKerberosAuthHandler, self).__init__(as_user, gssflags)
+    def __init__(self, as_user=None, spn=None, gssflags=k.GSS_C_MUTUAL_FLAG|k.GSS_C_SEQUENCE_FLAG):
+        super(ProxyKerberosAuthHandler, self).__init__(as_user, spn, gssflags)
         
     def http_error_407(self, req, fp, code, msg, headers):
         log.debug("inside http_error_407")
@@ -192,8 +196,8 @@ class HTTPKerberosAuthHandler(u2.BaseHandler, AbstractKerberosAuthHandler):
 
     handler_order = 480 # before Digest auth
 
-    def __init__(self, as_user=None, gssflags=k.GSS_C_MUTUAL_FLAG|k.GSS_C_SEQUENCE_FLAG):
-        super(HTTPKerberosAuthHandler, self).__init__(as_user, gssflags)
+    def __init__(self, as_user=None, spn=None, gssflags=k.GSS_C_MUTUAL_FLAG|k.GSS_C_SEQUENCE_FLAG):
+        super(HTTPKerberosAuthHandler, self).__init__(as_user, spn, gssflags)
         
     def http_error_401(self, req, fp, code, msg, headers):
         log.debug("inside http_error_401")
