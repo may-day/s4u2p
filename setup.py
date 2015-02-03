@@ -1,6 +1,6 @@
-# -*- coding: utf8 -*-
+# -*- coding: utf-8 -*-
 from distutils.core import setup, Extension
-import commands
+import subprocess
 
 long_description = """
 This is an small extension to the python kerberos package.
@@ -15,11 +15,25 @@ http://msdn.microsoft.com/en-us/magazine/cc188757.aspx#S2
 
 """
 
+def getoutput(cmd_and_args):
+    process = subprocess.Popen(cmd_and_args, stdout=subprocess.PIPE, universal_newlines=True)
+    out, err = process.communicate()
+    retcode = process.poll()
+    if retcode:
+        raise subprocess.CalledProcessError(retcode, cmd_and_args[0], output=out)
+    return out
+
+link_args = getoutput("krb5-config --libs gssapi".split()).split()
+compile_args = getoutput("krb5-config --cflags gssapi".split()).split()
+
+#compile_args.append("-Werror=missing-declarations")
+#compile_args.append("-Werror=implicit-function-declaration")
+
 setup (
     name = "s4u2p",
-    version = "0.2",
+    version = "0.3",
     author="Norman Krämer",
-    author_email="kraemer.norman@googlemail.com",
+    author_email="kraemer.norman@gmail.com",
     description = "Kerberos high-level interface to the s4u kerberos functionality",
     long_description=long_description,
     url="https://github.com/may-day/s4u2p",
@@ -27,6 +41,7 @@ setup (
     classifiers = [
         "License :: OSI Approved :: Apache Software License",
         "Programming Language :: Python :: 2",
+        "Programming Language :: Python :: 3",
         "Development Status :: 3 - Alpha",
         "Environment :: Web Environment",
         "Intended Audience :: Developers",
@@ -37,8 +52,8 @@ setup (
     ext_modules = [
         Extension(
             "s4u2p",
-            extra_link_args = commands.getoutput("krb5-config --libs gssapi").split(),
-            extra_compile_args = commands.getoutput("krb5-config --cflags gssapi").split(),
+            extra_link_args = link_args,
+            extra_compile_args = compile_args,
             sources = [
                 "src/s4u2p.c",
                 "src/base64.c",

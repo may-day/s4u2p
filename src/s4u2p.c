@@ -1,6 +1,6 @@
 /**
  * Copyright (c) 2006-2009 Apple Inc. All rights reserved.
- * Copyright (c) 2012 Norman Krämer. All rights reserved.
+ * Copyright (c) 2012-2015 Norman Krämer. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@
 
 #include <Python.h>
 
+#include "capsulethunk.h"
 #include "kerberosgss.h"
 
 PyObject *KrbException_class;
@@ -39,7 +40,7 @@ static PyObject* authGSSImpersonationInit(PyObject* self, PyObject* args, PyObje
         return NULL;
 
     state = (gss_impers_state *) malloc(sizeof(gss_impers_state));
-    pystate = PyCObject_FromVoidPtr(state, NULL);
+    pystate = PyCapsule_New(state, "gss_imp_state", NULL);
 
     result = authenticate_gss_impers_init(as_user, service, gss_flags, state);
     if (result == AUTH_GSS_ERROR)
@@ -57,18 +58,17 @@ static PyObject *authGSSImpersonationClean(PyObject *self, PyObject *args)
     if (!PyArg_ParseTuple(args, "O", &pystate))
         return NULL;
 
-    if (!PyCObject_Check(pystate)) {
+    if (!PyCapsule_IsValid(pystate, "gss_imp_state")) {
         PyErr_SetString(PyExc_TypeError, "Expected a context object");
         return NULL;
     }
 
-    state = (gss_impers_state *)PyCObject_AsVoidPtr(pystate);
+    state = (gss_impers_state *)PyCapsule_GetPointer(pystate, "gss_imp_state");
     if (state != NULL)
     {
         result = authenticate_gss_impers_clean(state);
 
         free(state);
-        PyCObject_SetVoidPtr(pystate, NULL);
     }
 
     return Py_BuildValue("i", result);
@@ -83,12 +83,12 @@ static PyObject *authGSSImpersonationCleanCtx(PyObject *self, PyObject *args)
     if (!PyArg_ParseTuple(args, "O", &pystate))
         return NULL;
 
-    if (!PyCObject_Check(pystate)) {
+    if (!PyCapsule_IsValid(pystate, "gss_imp_state")) {
         PyErr_SetString(PyExc_TypeError, "Expected a context object");
         return NULL;
     }
 
-    state = (gss_impers_state *)PyCObject_AsVoidPtr(pystate);
+    state = (gss_impers_state *)PyCapsule_GetPointer(pystate, "gss_imp_state");
     if (state != NULL)
     {
         result = authenticate_gss_impers_cleanctx(state);
@@ -108,12 +108,12 @@ static PyObject *authGSSImpersonationStep(PyObject *self, PyObject *args)
     if (!PyArg_ParseTuple(args, "Os", &pystate, &challenge))
         return NULL;
 
-    if (!PyCObject_Check(pystate)) {
+    if (!PyCapsule_IsValid(pystate, "gss_imp_state")) {
         PyErr_SetString(PyExc_TypeError, "Expected a context object");
         return NULL;
     }
 
-    state = (gss_impers_state *)PyCObject_AsVoidPtr(pystate);
+    state = (gss_impers_state *)PyCapsule_GetPointer(pystate, "gss_imp_state");
     if (state == NULL)
         return NULL;
 
@@ -132,12 +132,12 @@ static PyObject *authGSSImpersonationResponse(PyObject *self, PyObject *args)
     if (!PyArg_ParseTuple(args, "O", &pystate))
         return NULL;
 
-    if (!PyCObject_Check(pystate)) {
+    if (!PyCapsule_IsValid(pystate, "gss_imp_state")) {
         PyErr_SetString(PyExc_TypeError, "Expected a context object");
         return NULL;
     }
 
-    state = (gss_impers_state *)PyCObject_AsVoidPtr(pystate);
+    state = (gss_impers_state *)PyCapsule_GetPointer(pystate, "gss_imp_state");
     if (state == NULL)
         return NULL;
 
@@ -152,12 +152,12 @@ static PyObject *authGSSImpersonationUserName(PyObject *self, PyObject *args)
     if (!PyArg_ParseTuple(args, "O", &pystate))
         return NULL;
 
-    if (!PyCObject_Check(pystate)) {
+    if (!PyCapsule_IsValid(pystate, "gss_imp_state")) {
         PyErr_SetString(PyExc_TypeError, "Expected a context object");
         return NULL;
     }
 
-    state = (gss_impers_state *)PyCObject_AsVoidPtr(pystate);
+    state = (gss_impers_state *)PyCapsule_GetPointer(pystate, "gss_imp_state");
     if (state == NULL)
         return NULL;
 
@@ -197,6 +197,66 @@ static PyMethodDef S4U2PKerberosMethods[] = {
     {NULL, NULL, 0, NULL}        /* Sentinel */
 };
 
+#if PY_MAJOR_VERSION >= 3
+static struct PyModuleDef moduledef = {
+        PyModuleDef_HEAD_INIT,
+        "s4u2p",
+        NULL,
+        0,
+        S4U2PKerberosMethods,
+        NULL,
+        NULL,
+        NULL,
+        NULL
+};
+
+PyMODINIT_FUNC PyInit_s4u2p(void);
+
+PyMODINIT_FUNC
+PyInit_s4u2p(void)
+{
+    PyObject *m;
+
+    m = PyModule_Create(&moduledef);
+
+    /* create the base exception class */
+    if (!(KrbException_class = PyErr_NewException("kerberos.KrbError", NULL, NULL)))
+        goto error;
+
+    Py_INCREF(KrbException_class);
+    PyModule_AddObject(m, "KrbError", KrbException_class);
+
+
+    /* ...and the derived exceptions */
+    if (!(GssException_class = PyErr_NewException("kerberos.GSSError", KrbException_class, NULL)))
+        goto error;
+    Py_INCREF(GssException_class);
+    PyModule_AddObject(m, "GSSError", GssException_class);
+
+    PyModule_AddIntConstant(m, "AUTH_GSS_COMPLETE", AUTH_GSS_COMPLETE);
+    PyModule_AddIntConstant(m, "AUTH_GSS_CONTINUE", AUTH_GSS_CONTINUE);
+
+    PyModule_AddIntConstant(m, "GSS_C_DELEG_FLAG", GSS_C_DELEG_FLAG);
+    PyModule_AddIntConstant(m, "GSS_C_MUTUAL_FLAG", GSS_C_MUTUAL_FLAG);
+    PyModule_AddIntConstant(m, "GSS_C_REPLAY_FLAG", GSS_C_REPLAY_FLAG);
+    PyModule_AddIntConstant(m, "GSS_C_SEQUENCE_FLAG", GSS_C_SEQUENCE_FLAG);
+    PyModule_AddIntConstant(m, "GSS_C_CONF_FLAG", GSS_C_CONF_FLAG);
+    PyModule_AddIntConstant(m, "GSS_C_INTEG_FLAG", GSS_C_INTEG_FLAG);
+    PyModule_AddIntConstant(m, "GSS_C_ANON_FLAG", GSS_C_ANON_FLAG);
+    PyModule_AddIntConstant(m, "GSS_C_PROT_READY_FLAG", GSS_C_PROT_READY_FLAG);
+    PyModule_AddIntConstant(m, "GSS_C_TRANS_FLAG", GSS_C_TRANS_FLAG);
+
+    return m;
+error:
+    if (PyErr_Occurred())
+        PyErr_SetString(PyExc_ImportError, "s4u2p: init failed");
+    return NULL;
+}
+
+#else
+
+PyMODINIT_FUNC inits4u2p(void);
+
 PyMODINIT_FUNC inits4u2p(void)
 {
     PyObject *m,*d;
@@ -232,5 +292,6 @@ PyMODINIT_FUNC inits4u2p(void)
 
 error:
     if (PyErr_Occurred())
-        PyErr_SetString(PyExc_ImportError, "kerberos: init failed");
+        PyErr_SetString(PyExc_ImportError, "s4u2p: init failed");
 }
+#endif 
